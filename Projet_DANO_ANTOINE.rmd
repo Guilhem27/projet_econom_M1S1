@@ -1,0 +1,1202 @@
+---
+title: "Projet Économétrie II:  Investissements Directs Etrangers et croissance économique française"
+author: "Clothilde Dano et Alexandre Antoine"
+date: "2023-11-30"
+output:
+  pdf_document:
+    latex_engine: xelatex
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+options(repos ='C:/Users/33658/AppData/Local/R/win-library/4.2')
+
+install.packages('macbinary')
+install.packages("forecast")
+install.packages("FinTS")
+install.packages("tseries")
+install.packages("vars")
+
+library(readxl)
+library(urca)
+library(ggplot2)
+
+library(lmtest)
+library(FinTS)
+
+library(vars)
+
+```
+\newpage
+
+# Sommaire
+
+## Introduction 
+
+## Partie 1: MODÉLISATION UNIVARIÉE
+1. [Choix des séries temporelles](#choix-series-temporelles)
+2. [Représentation graphiques et autocorrélogrammes simples et partiels](#representation-graphiques)
+    - 2.1 [PIB](#pib)
+    - 2.2 [IDE](#ide)
+3. [Stratégie de test de racine unitaire, test KPSS et stationnarisation](#strategie-test-racine-unitaire)
+    - 3.1 [PIB](#strategie-pib)
+    - 3.2 [IDE](#strategie-ide)
+4. [Identification du modèle ARMA et validation](#identification-validation)
+    - 4.1 [Identification](#identification)
+    - 4.2 [Validation](#validation)
+5. [Prévisions](#previsions)
+
+## Partie 2: MODÉLISATION MULTIVARIÉE
+1. [Estimation du modèle VAR avec un nombre de retards optimal](#estimation-var)
+2. [Relation de causalité entre les variables](#relation-causalite)
+    - 2.1 [Test d'absence de causalité du PIB sur les IDE](#test-pib-ide)
+    - 2.2 [Test d'absence de causalité des IDE sur le PIB](#test-ide-pib)
+3. [Analyse impulsion-réponse des chocs](#analyse-impulsion-reponse)
+    - 3.1 [La méthode des prévisions récursives avec le VAR](#methode-prevision-recursives)
+    - 3.2 [La méthode des projection locales](#methode-projection-locales)
+    - 3.3 [La décomposition de la variable](#decomposition-variable)
+4. [Test de cointégration de Johansen](#test-cointegration-johansen)
+
+\newpage
+
+# Introduction
+
+  Dans ce projet d'économétrie, nous plongeons dans l'étude de deux séries temporelles cruciales pour l'économie française : les Investissements Directs Étrangers (IDE) envoyés par la France et le taux de croissance du Produit Intérieur Brut (PIB). L'objectif principal de cette analyse est d'explorer la dynamique de ces deux variables et d'identifier toute relation économique potentielle qui pourrait les lier.
+  
+  L'histoire économique montre que la croissance robuste de la France a souvent coïncidé avec des périodes où les entreprises françaises ont massivement investi à l'étranger. Par exemple, pendant les périodes de croissance économique soutenue en France, les entreprises ont souvent augmenté leurs investissements dans des secteurs clés à l'international, renforçant ainsi leur présence mondiale.
+
+Inversement, des fluctuations dans la croissance économique nationale ont également eu un impact sur les IDE sortants. Les périodes de ralentissement économique en France ont parfois conduit à une réduction des IDE sortants, car les entreprises se concentraient davantage sur la consolidation de leurs opérations nationales pour faire face à des conditions économiques plus difficiles.
+
+Par ailleurs, des réorientations stratégiques de la part des entreprises françaises, telles que des investissements dans de nouveaux marchés ou des restructurations sectorielles, ont influencé la croissance économique interne en France. Ces mouvements ont eu des implications sur la compétitivité et l'innovation des entreprises, affectant ainsi leur contribution à l'économie nationale. On peut également penser à certaines politiques d'investissement massifs, qui ont permis de relancer l'économie française lors de périodes de récession.
+
+En synthèse, cette analyse économétrique vise à explorer la relation dynamique entre la croissance économique de la France et les IDE sortants du pays. Comprendre cette interrelation bidirectionnelle est crucial pour orienter les politiques économiques et d'investissement afin de stimuler une croissance économique durable et d'encourager les entreprises françaises à prospérer tant sur le marché national qu'international.
+
+\newpage
+
+# Partie 1 : Modélisation Univariée
+
+## 1. Choix des séries temporelles
+
+Dans notre modèle, nous avons décidé d'explorer la causalité qui existe
+entre le taux de croissance du PIB de la France d'un trimestre à l'autre
+et les IDE de la France calcules en % du PIB.
+
+Le taux de croissance du Produit Interieur Brut (PIB) d'un trimestre à
+l'autre évalue la variation de la production de biens et de services d'un pays sur une période spécifique. Il représente l'augmentation ou la diminution de la richesse créée par l'économie pendant ce laps de temps. 
+
+Le PIB trimestriel que nous avons choisi mesure l'activité économique en termes de valeur monétaire ajustée pour l'inflation, permettant ainsi une comparaison plus précise des performances économiques sur le long terme. Cette mesure est corrigée des variations saisonnieres (CVS) et exprimée en pourcentage pour mieux
+évaluer la croissance economique du pays. Les données utilisées pour calculer cette mesure sont fondées sur le Système de Comptabilité Nationale de 2008 (SCN 2008). Le pays étudié est ici la France, et la période concernée est ici 1999-2021.
+
+Les investissements directs étrangers (IDE) sont des investissements réalisés par une entreprise résidente d'une économie (l'investisseur direct) dans le but d'acquérir un intérêt durable dans une entreprise opérant dans une autre économie (l'entreprise d'investissement
+direct). Cet intérêt durable implique une relation à long terme entre l'investisseur direct et l'entreprise d'investissement direct, avec une influence substantielle sur la gestion de cette dernière. 
+
+Ici, afin de neutraliser l'impact des différences de taille des économies entre les pays déclarants, nous avons choisi des données exprimées en pourcentage du PIB. Nos chiffres traduisent les IDE de la France exprimés en pourcentage du PIB de la France, envoyés dans le reste du monde de 1999 à 2021, les données sont trimestrielles. Notre base est issue de la section "Investissements étrangers" de la balance des paiements d'Eurostat. 
+
+Étudier la causalité entre les investissements directs étrangers de la France, exprimés en pourcentage du PIB, et le taux de croissance du pays revêt un intérêt crucial pour plusieurs raisons. Une croissance économique robuste stimule les IDE sortants en renforçant la compétitivité des entreprises sur les marchés mondiaux, en favorisant l'innovation et le développement technologique, ainsi qu'en diversifiant les activités économiques à l'échelle internationale. En parallèle, les IDE sortants contribuent à la croissance économique nationale en créant des emplois, en stimulant les exportations et en soutenant la compétitivité des entreprises sur le marché mondial.
+
+
+Par ailleurs, dans notre modèle économétrique, nous avons décidé de logariser les IDE de la France calculés en pourcentage du PIB. En effet, cette logarisation présente plusieurs avantages significatifs. Tout d'abord, la transformation logarithmique peut être bénéfique pour corriger d'éventuelles asymétries ou écarts importants dans les données des IDE, offrant ainsi une meilleure stabilité aux données en minimisant les variations extrêmes. Ensuite, elle permet de mieux représenter une éventuelle relation non linéaire entre les IDE et la croissance économique, en rendant les effets proportionnels plutôt qu'absolus. Finalement, en logarisant les IDE, cette approche facilite l'interprétation des effets en termes de pourcentage de changement, offrant une perspective plus intuitive et significative pour comprendre la relation. 
+
+```{r importation_donnees, echo=FALSE, warning=FALSE, message=FALSE}
+#Importation des donnees
+
+install.packages('readxl')
+library(readxl)
+my_data <- read_excel("C:\\Users\\33658\\Desktop\\DonneesprojetECON2_FINAL2excel.xlsx")
+
+colnames(my_data) <- c("Date", "IDE", "PIB")
+
+IDE<-my_data$"IDE"
+PIB<-my_data$"PIB"
+
+#transformation des valeurs du excel en donnees numeriques
+IDE<-as.numeric(IDE)
+PIB<-as.numeric(PIB)
+
+#Transformation des donnees en series temporelles 
+IDE <-ts(IDE,frequency=4,start=c(1999,1)) 
+PIB <-ts(PIB,frequency=4,start=c(1999,1))
+
+#Linearisation des IDE (application du log)
+logIDE <-log(IDE)
+
+```
+
+## 2. Graphiques et Autocorrélogrammes
+
+### Représentation graphique des séries :
+
+Nous utilisons le logiciel R afin d'étudier les séries temporelles que
+nous avons choisies.
+
+```{r graphe-PIB, echo=TRUE}
+plot(PIB,xlab="Date",ylab="Variation du PIB", col="orange")
+```
+
+La figure ci-dessus représente l'évolution du taux de croissance du PIB de la France entre le premier trimestre de 1999 et le dernier trimestre de 2021, exprimé en % de la période précédente. Il nous montre que le PIB a évolué de manière stable de 1999 à 2021. Avec une tendance à la hausse en général, le taux de croissance se trouve généralement au-dessus de 0 malgré quelques périodes de baisse. On observe cependant quelques variations sur la courbe. En 2008, on voit que la croissance du PIB français a chuté, ceci peut s'expliquer par la crise financière mondiale qui empiriquement a fait chuter le PIB français de 3% en 2008. Le PIB a ensuite retrouvé sa croissance, mais il a connu une nouvelle baisse en 2020 en raison de la pandémie de COVID-19.
+
+En conclusion, l'évolution du PIB de la France sur la période 1999-2021 est globalement positive, avec une tendance à la hausse. Cependant, la croissance du PIB a été ponctuée par quelques crises économiques.
+
+On remarque par ailleurs que les variations sont similaires au cours du temps, on peut donc penser que la série est stationnaire. 
+
+```{r graphe-logIDE, echo=TRUE}
+plot(logIDE,xlab="Date",ylab="log des IDE en % du PIB", col= "orange")
+```
+
+Le graphique ci-joint représente l'évolution des investissements directs étrangers (IDE) sortants de la France entre 1999 et 2021.
+
+L'analyse économique de ce graphique permet de tirer plusieurs conclusions. Tout d'abord, les IDE sortants sont un indicateur important de l'internationalisation des économies. En France, ils ont connu une forte croissance jusqu'en 2007, avant de se stabiliser à un niveau inférieur. Cette évolution est le reflet de plusieurs facteurs, notamment la mondialisation, l'ouverture des marchés au début des années 2000 a en effet fait augmenter les IDE vers le reste du monde; les effets tardifs de la crise financière de 2008, on voit en effet une tendance à la baisse après 2008, et la crise sanitaire de 2020, on remarque le pic de baisse des IDE en 2020/2021, ceci s'explique par la fermeture des économies et la hausse des investissements internes nécessaires durant cette période. 
+
+Finalement, au vu du graphique, la série présente une tendance à long-terme, et son écart-type varie, on peut donc penser que les IDE de la France logarisés n'est pas une série stationnaire. 
+
+
+
+L'autocorrélation se réfère à la corrélation d'une variable avec elle-même à différents moments dans le temps. En d'autres termes, il s'agit de la corrélation entre les valeurs successives d'une même variable dans une série temporelle. Si une variable est autocorrélée, cela signifie qu'il existe une corrélation statistiquement significative entre les valeurs passées et/ou présentes de cette variable.
+
+On regarde l'autocorrélation à l'aide des autocorrélogrammes simples et partiels pour chaque variable. 
+
+### Autocorrélogrammes simples : 
+
+```{r acf-PIB, echo=TRUE}
+acfPIB<-acf(PIB)
+plot(acfPIB,xlab="Retards",ylab="Fonction d'autocorrelation simple",main="ACF du taux de croissance du PIB")
+
+```
+
+On voit que la fonction d'autocorrélation simple tend vers 0 au fur et à mesure que les retards augmentent. La série pourrait ne pas être stationnaire.
+
+```{r acf-LOGIDE, echo=TRUE}
+acflogIDE <- acf(logIDE)
+plot(acflogIDE,xlab="Retards",ylab="Fonction d'autocorrelation simple",main="ACF du log des IDE")
+
+```
+
+On voit que la fonction d'autocorrélation simple décroit avec h, et tend vers 0, ce qui est révélateur d'une série non stationnaire. Ce qui nous semble être cohérent avec les hypothèses mises en lumière lors de la lecture graphique.
+
+### Autocorrélogrammes partiels :
+
+L'autocorrélogramme partiel retire l'influence des variables intermédiaires.
+
+```{r pacf-PIB, echo=TRUE}
+pacfPIB <- pacf(PIB)
+plot(pacfPIB,xlab="Retards",ylab="Fonction d'autocorrelation partielle",main="PACF du PIB")
+```
+
+Au delà du premier retard, l'autocorrélation partielle n'est plus significative (comprise entre les barres en pointillées du graphe), ce qui laisse présager une série non stationnaire.
+
+```{r pacf-LOGIDE,echo=TRUE}
+pacflogIDE <- pacf(logIDE)
+plot(pacflogIDE,xlab="Retards",ylab="Fonction d'autocorrelation partielle",main="PACF du log des IDE")
+
+```
+
+Au delà du premier retard, l'autocorrélation partielle n'est plus significative, ce qui laisse également présager une série non stationnaire.
+
+Pour pouvoir ensuite effectuer des prévisions sur ces séries, il est essentiel de travailler sur des séries stationnaires. Or, les autocorrélogrammes simples et partiels ne sont pas à eux-seuls des indicateurs suffisants de stationarité, d'où l'importance d'effectuer des tests sur ces séries, afin de conclure sur leur stationnarité. C'est l'objet de la prochaine section.
+
+## 3. Stratégie de test de racine unitaire et méthode de stationnarisation
+
+### a. L'analyse pour le PIB
+
+### a.1 - Test de Dickey Fuller sur le PIB
+
+Avec les applications aux deux modèles qui suivent, les hypothèses du test ADF (Augmented Dickey Fuller) sont les suivantes:
+\[
+H_0 : \phi=1 \Rightarrow \ racine \ unitaire
+\ contre  \ H_1 : \phi<1 \Rightarrow \ pas \ de \ racine \ unitaire
+\]
+
+La statistique de test du test de Dickey Fuller est définie telle que :
+
+\[ \hat{t}_{\rho} = \frac{\hat{\rho}}{\hat{\sigma}_{\rho}} \]
+
+La règle de décision consiste à rejeter \(H_0\) si \(\hat{t}_{\rho} < c\). Ici, \(c\) représente la valeur critique, obtenue à partir des tables de Dickey-Fuller (modèle 3, 92 observations) qui sont comme suit : 
+
+
+| $\alpha$  |  1%       | 5%        | 10%       |
+|-----------|-----------|-----------|-----------|
+| M3        | - 4.1     | - 3.47    | - 3.17.   |
+| M2        | - 3.55    | - 2.91    | - 2.59    |
+| M1        | - 2.61    | - 1.95    | - 1.61    |
+
+
+Le nombre de retards optimal est choisi en fonction de la minimisation du critère AIC, avec un retard maximal égal à 4, étant donné que cette série est trimestrielle. 
+
+#### Le modèle 3 avec la tendance déterministe
+
+  Le modèle sur lequel nous travaillons s'écrit ici:
+\[
+\Delta X_t = c + bt + \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r M3-DF-PIB, echo=TRUE}
+library(urca)
+adfPIB1<-ur.df(PIB,type=c("trend"), lag=10, selectlags = c('AIC'))
+summary(adfPIB1) 
+```
+
+La statistique du test ADF vaut -9.1085, elle est inférieure aux seuils de rejets pour les risques de première espèce de 1%, 5% et 10% (lus sur la ligne tau3). On rejette donc l'hypothèse nulle de racine unitaire.
+
+La tendance déterministe est-elle significative ? 
+
+Comme on a rejeté l'hypothèse nulle, on utilise un test de student pour analyser la significativité de la tendance déterministe
+
+\[ H_0 : b = 0 \ contre \ H_1 : b  \neq 0
+\]
+La statistique de test de Student pour un échantillon est donnée par :
+
+\[ \hat{t}_b = \frac{\hat{b}}{\hat{\sigma}_b} \]
+
+La t-stat de la tendance déterministe est égale à 0.095. La valeur critique qui figure sur la table de Student est égale à : \[ |\hat{t}_b| = 2.86\] (prise pour un risque de première espèce de 5%) donc on a \[ \hat{t}_b < VC.\]
+
+L'hypothèse nulle n'est donc pas rejetée, c'est-à-dire la tendance déterministe n'est pas significative, donc on l'enlève. La conclusion est cohérente avec la p-valeur du test, qui vaut 0.9246, bien supérieure aux seuils de rejet de 1%, 5%, et 10%.
+
+#### Le modèle 2 avec la constante
+
+  Nous travaillons ici avec le modèle:
+\[
+\Delta X_t = c  + \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r M2-DF-PIB, echo=TRUE}
+adfPIB2<-ur.df(PIB,type=c("drift"), lag=4, selectlags = c('AIC'))
+summary(adfPIB2)
+```
+
+La statistique du test ADF vaut -9.4612, elle est inférieure aux seuils de rejets pour les risques de première espèce de 1%, 5% et 10% (lus sur la ligne tau3). On rejette donc l'hypothèse nulle de racine unitaire.
+
+La constante est-elle significative ? 
+\[ H_0 : c = 0 \ contre \ H_1 : c \neq  0
+\]
+
+On voit que sa p-valeur vaut 0.0407, donc on rejette H0 au seuil 5%, et on conclut que la constante est significative.
+
+On en conclut que nous travaillons avec un processus de la forme:
+I(0) + C
+
+Pour confirmer ces résultats, nous effectuons un test KPSS, dans le but ici de minimiser le risque de seconde espèce, alors que le test ADF minimisait le risque de première espèce.
+
+### a.2 - Test KPSS sur le PIB
+
+Avec les applications aux deux modèles qui suivent, les hypothèses du test KPSS (Kwiatkowski-Phillips-Schmidt-Shin) sont les suivantes:
+\[
+H_0 : \phi<1 \Rightarrow \ pas \ de \ racine \ unitaire
+\ contre  \ H_1 : \phi=1 \Rightarrow \ racine \ unitaire
+\]
+
+La statistique de test est donnée par :
+
+\[ LM = \frac{1}{T} \sum_{t=1}^{T} \frac{S^2}{s^2} \cdot \frac{1}{T^2} \cdot t \]
+
+La règle de décision est de rejeter \(H_0\) si \(LM > c\), où \(c\) est la valeur critique.
+
+
+#### Test KPSS avec la constante uniquement :
+
+  On travaille sur:
+\[
+\Delta X_t = c  + \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r KPSStau-PIB,echo=TRUE}
+kpss_PIB1 <- ur.kpss(y=PIB, type="tau", lags="short" )
+summary(kpss_PIB1)
+
+```
+
+On trouve une statistique de test égale à LM = 0.0447, donc inférieure aux seuils de rejet indiqués lors du test. D'après la règle de décision pour le test KPSS, on ne peut pas rejetter \(H_0\), ce qui est cohérent avec les résultats obtenus avec les tests ADF.
+
+On effectue à nouveau le test avec l'ajout d'une tendance déterministe.
+
+#### Test KPSS avec la constante et la tendance déterministe
+
+  On travaille ici avec:
+\[
+\Delta X_t = c + bt + \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r KPSSmu-PIB, echo=TRUE}
+kpss_PIB2 <- ur.kpss(y=PIB, type="mu", lags="short" )
+summary(kpss_PIB2)
+```
+
+On a donc une statistique de test, qui vaut ici 0.0629, qui est inférieure aux valeurs critiques indiquées, donc on ne peut pas rejeter \(H_0\), ce qui est cohérent avec les résultats obtenus avec les tests ADF.
+
+Le processus est donc bien I(0) + C. C'est un processus stationnaire.
+
+### b. L'analyse pour le log des IDE
+
+### b.1 - Test de Dickey Fuller augmenté sur le log des IDE
+
+On applique ici exactement la même stratégie. Les hypothèses sont:
+\[
+H_0 : \phi=1 \Rightarrow \ racine \ unitaire
+\ contre  \ H_1 : \phi<1 \Rightarrow \ pas \ de \ racine \ unitaire
+\]
+
+La statistique de test de Dickey Fuller est définie comme suit :
+
+\[ \hat{t}_{\rho} = \frac{\hat{\rho}}{\hat{\sigma}_{\rho}} \]
+
+Les valeurs critiques du test de Dickey Fuller pour les 3 modèles sont obtenues à partir des tables de Dickey-Fuller (modèle 3, 92 observations) elles sont comme suit : 
+
+
+| $\alpha$  |  1%       | 5%        | 10%       |
+|-----------|-----------|-----------|-----------|
+| M3        | - 4.1     | - 3.47    | - 3.17.   |
+| M2        | - 3.55    | - 2.91    | - 2.59    |
+| M1        | - 2.61    | - 1.95    | - 1.61    |
+
+
+Le nombre de retards optimal est à nouveau choisi en fonction de la minimisation du critère AIC, avec un retard maximal égal à 4 de nouveau, étant donné que cette série est elle aussi trimestrielle. 
+
+#### Le modèle 3 avec la tendance déterministe
+
+  Le modèle sur lequel nous travaillons s'écrit ici:
+\[
+\Delta X_t = c + bt + \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r M3-DF-logIDE, echo=TRUE}
+library(urca)
+adflogIDE3<-ur.df(logIDE,type=c("trend"), lag=4, selectlags = c('AIC'))
+summary(adflogIDE3) 
+```
+
+La statistique du test ADF vaut -3.3354, elle est supérieure aux seuils de rejets pour les risques de première espèce de 1% et de 5% (lus sur la ligne tau3). On ne peut donc pas rejeter l'hypothèse nulle de racine unitaire.
+
+Pour la significativité de la tendance déterministe, les hypothèses de test sont celles de Dickey Fuller comme l'on a pas rejeté l'hypothèse nulle, alors :
+\[ H_0 : b= 0 \ contre \ H_1 : b \neq 0
+\]
+
+On va regarder la valeur critique de Dickey Fuller au seuil de 5%.
+La valeur critique vaut -3.15, que l'on compare à la t-stat associée à la tendance déterministe en valeur absolue : -1.866.
+1.866 < 3.45, donc on ne rejette pas \(H_o\), la tendance déterministe n’est pas significative, on passe donc au modèle 2, avec constante uniquement.
+
+#### Le modèle 2 avec la constante uniquement
+
+  On travaille ici avec:
+\[
+\Delta X_t = c + \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r M2-DF-logIDE2, echo=TRUE}
+adflogIDE2<-ur.df(logIDE,type=c("drift"), lag=4, selectlags = c('AIC'))
+summary(adflogIDE2)
+```
+
+La statistique du test ADF vaut -2.3026, elle est supérieure aux seuils de rejets pour les risques de première espèce de 1%, 5% et 10% (lus sur la ligne tau3). On ne peut donc pas rejeter l'hypothèse nulle de racine unitaire.
+
+Pour la significativité de la constante, les hypothèses de test sont les suivantes:
+\[ H_0 : c = 0 \ contre \ H_1 : c \neq 0
+\]
+
+Comme nous n'avons pas rejeté l'hypothèse nulle de racine unitaire dans le cadre du modèle 2, on teste la significativité de la constante à l’aide de la statistique de Dickey Fuller.
+
+Pour la significativité de la constante, on va donc regarder la valeur critique de Dickey Fuller au seuil de 5% qui vaut -2.58 que l’on compare en valeur absolue à la t-stat de la constante qui vaut 1.702.
+On a 1.702 < 2.58, donc on ne rejette pas \(H_0\) , la constante n’est pas significative, on passe donc au modèle 1. 
+
+#### Le modèle 1 sans la constante ni la tendance déterministe
+
+  On travaille ici avec:
+\[
+\Delta X_t =  \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r M1-DF-logIDE1, echo=TRUE}
+adflogIDE1<-ur.df(logIDE,type=c("none"), lag=4, selectlags = c('AIC'))
+summary(adflogIDE1)
+```
+
+La statistique du test ADF vaut -1.541, elle est supérieure aux seuils de rejets pour les risques de première espèce de 1%, 5% et 10%  (lus sur la ligne tau3). On ne peut donc pas rejeter  l'hypothèse nulle de racine unitaire.
+
+On en conclut que notre processus est DS intégré d'ordre 1, ou I(1). Lorsqu'on dit qu'un processus est un processus DS intégré d'ordre 1, cela signifie que la série temporelle doit être différenciée une fois pour devenir stationnaire, donc qu'elle ne l'est pas à l'origine.  
+
+Vérifions ces résultats à l'aide du test KPSS.
+
+#### Test KPSS avec la constante uniquement :
+
+  On rappelle les hypothèses du test:
+\[
+H_0 : \phi<1 \Rightarrow \ pas \ de \ racine \ unitaire
+\ contre  \ H_1 : \phi=1 \Rightarrow \ racine \ unitaire
+\]
+Le modèle est ici:
+\[
+\Delta X_t = c + \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r KPSStau-logIDE, echo=TRUE}
+kpss_logIDE1 <- ur.kpss(y=logIDE, type="tau", lags="short" )
+summary(kpss_logIDE1)
+```
+
+La statistique du test KPSS vaut 0.1537, elle est supérieure aux valeurs de rejet pour les risques de première espèce de 5% et 10%. On ne peut donc pas rejeter l'hypothèse nulle de stationarité.
+On effectue à nouveau le test avec l'ajout d'une tendance déterministe.
+
+#### Test KPSS avec la constante et la tendance déterministe
+
+  Le modèle est le suivant:
+\[
+\Delta X_t = c + bt + \phi X_{t-1} + \sum_{i=1}^{p} \delta_i \Delta X_{t-i} + \varepsilon_t
+\]
+
+```{r KPSSmu-logIDE, echo=TRUE}
+kpss_logIDE2 <- ur.kpss(y=logIDE, type="mu", lags="short" )
+summary(kpss_logIDE2)
+```
+
+La statistique du test KPSS vaut ici 1.0668. Elle est supèrieure aux valeurs de rejet pour les risques de première espèce de 1%, 5% et 10%. On ne peut donc pas rejeter l'hypothèse nulle de stationarité.
+
+Comme trouvé précédemment, le log des IDE est donc bien une variable non stationnaire.
+
+Il est donc nécessaire de la différencier afin de la rendre stationnaire.
+
+### c. Différenciation de la variable non stationnaire : le log des IDE
+
+Faisons la différence première de la série du log des IDE.
+
+La différence première, obtenue à l'aide de la fonction diff() en R, représente la variation entre chaque valeur successive dans une série temporelle. Elle est utilisée pour analyser la tendance de croissance ou de décroissance dans les séries temporelles.
+
+En appliquant la différence première au logarithme des IDE, on obtient la variation relative ou le taux de croissance instantané des IDE entre les périodes de temps successives.
+
+```{r diff-première, echo=TRUE}
+DIFFlogIDE <-diff(logIDE)
+```
+
+### Représentation graphique du taux de croissance du log des IDE de la France
+
+```{r DIFFlogIDE-graphe, echo=TRUE}
+plot.ts(DIFFlogIDE,main="Croissance du log des IDE France",frame=F,
+        xlab='temps',ylab='croissance du log des IDE',col="red")
+```
+
+Au vu du graphique, on peut maintenant supposer que la série est stationnaire. Pour le confirmer, on réapplique à notre série différenciée les tests de racine unitaire de Dickey Fuller et les tests KPSS.
+
+On représente maintenant les autocorrélogrammes de la série différenciée :
+
+### Autocorrélations simples du taux de croissance du log des IDE de la France
+
+```{r DIFFlogIDE-acf, echo=TRUE}
+acfDIFFlogIDE<-acf(DIFFlogIDE)
+plot(acfDIFFlogIDE,xlab="Retards",ylab="Fonction d'autocorrleation simple",main="ACF du log des IDE differencie")
+```
+
+On observe que les autocorélations ne sont plus significatives à partir du premier retard.
+
+### Autocorrélations partielles du taux de croissance du log des IDE de la France
+
+```{r DIFFlogIDE-pacf, echo=TRUE}
+pacfDIFFlogIDE<-pacf(DIFFlogIDE)
+plot(pacfDIFFlogIDE,xlab="Retards",ylab="Fonction d'autocorrelation partielle",main="PACF du log des IDE differencie")
+```
+
+De la même manière, les autocorrélations partielles ne sont plus significatives à partir du premier retard.
+
+### Application du test de Dickey Fuller sur notre série différenciée  :
+
+#### Modèle avec tendance déterministe et constante:
+
+  Le nouveau modéle général se présente sous cette forme:
+\[ \Delta Xt = c + bt + Yt \] 
+
+On teste la stationarité du modèle avec tendance déterministe et constante. Le nombre de retards maximum est fixé à 4 (toujours car les données sont trimestrielles) et le nombre de retards optimal est déterminé par la minimisation du critère AIC.
+On rappelle les hypothèses de test : 
+
+\[
+H_0 : \phi=1 \Rightarrow \ racine \ unitaire
+\ contre  \ H_1 : \phi<1 \Rightarrow \ pas \ de \ racine \ unitaire
+\]
+
+```{r DIFFlogIDE-Test-ADFM3, echo=TRUE}
+library(urca)
+adfDIFFlogIDE3<-ur.df(DIFFlogIDE,type=c("trend"), lag=4, selectlags = c('AIC'))
+summary(adfDIFFlogIDE3) 
+```
+
+La statistique du test ADF vaut -7.424, elle est inférieure aux seuils de rejets pour les risques de première espèce de 1%, 5% et 10% (lus sur la ligne tau3). On rejette donc l'hypothèse nulle de racine unitaire.
+
+La tendance déterministe est-elle significative ? 
+\[ H_0 : b = 0 \ contre \ H_1 : b \neq 0
+\]
+
+La t-stat de la tendance déterministe est égale à 0.266. La valeur critique qui figure sur la table de Student est égale à 2.86 pour un risque de première espèce de 5%, l'hypothèse nulle n'est donc pas rejetée, c'est-à-dire la tendance déterministe n'est pas significative, donc on l'enlève.
+
+On regarde maintenant le modèle 2 avec la constante uniquement. 
+
+#### Modèle avec la constante uniquement 
+
+  Ici on travaille avec: \[\Delta Xt = c + Yt\]
+
+```{r DIFFlogIDE-Test-ADFM2, echo=TRUE}
+adfDIFFlogIDE2<-ur.df(DIFFlogIDE,type=c("drift"), lag=4, selectlags = c('AIC'))
+summary(adfDIFFlogIDE2)
+
+```
+
+La statistique du test ADF vaut -7.4622, elle est inférieure aux seuils de rejets pour les risques de première espèce de 1%, 5% et 10% (lus sur la ligne tau2). On rejette donc l'hypothèse nulle de racine unitaire.
+
+Est-ce que la constante est significative ?
+
+\[ H_0 : c = 0 \ contre \ H_1 : c \neq 0
+\]
+
+La t-stat de la constante est égale à -0.685. Comme l'on a rejeté l'hypothèse de racine unitaire dans le cadre du modèle 2, on teste la significativité de la constante à l'aide de la table de Student.
+
+Le seuil de rejet qui figure sur la table est égal à 2.86 pour un risque de première espèce de 5% sur un test bilatéral, donc on ne rejette pas l'hypothèse nulle. La constante n'est donc pas significative.
+
+On teste donc maintenant le modèle 1 sans constante ni tendance déterministe.
+
+#### Modèle sans la constante et sans la tendance déterministe
+
+  Le modèle est: \[\Delta Xt = Yt\]
+
+```{r DIFFlogIDE-Test-ADFM1, echo=TRUE}
+adfDIFFlogIDE3<-ur.df(DIFFlogIDE,type=c("none"), lag=4, selectlags = c('AIC'))
+summary(adfDIFFlogIDE3)
+```
+
+La statistique du test ADF vaut -7.4549, elle est inférieure aux seuils de rejets pour les risques de première espèce de 1%, 5% et 10% (lus sur la ligne tau1). On rejette donc l'hypothèse nulle de racine unitaire.
+
+On en conclut que notre nouveau processus Yt différencié est I(0). C'est un processus stationnaire sans dérive.
+
+La différence première a bien permis de stationnariser notre série, on vérifie tout de même la stationnarité du nouveau processus autour d'une constante avec un test KPSS.
+
+### Test de stationarité KPSS sur notre nouveau processus
+
+On rappelle les hypothèses du test KPSS:
+\[
+H_0 : \phi<1 \Rightarrow \ pas \ de \ racine \ unitaire
+\ contre  \ H_1 : \phi=1 \Rightarrow \ racine \ unitaire
+\]
+
+#### Modèle avec constante
+  
+  Soit : 
+\[\Delta Xt = c + Yt\]
+
+```{r DIFFlogIDE-Test-KPSSc, echo=TRUE}
+kpss_DIFFlogIDE1 <- ur.kpss(y=DIFFlogIDE, type="tau", lags="short" )
+summary(kpss_DIFFlogIDE1)
+```
+
+On trouve une statistique de test égale à 0.037, elle est inférieure aux seuils de rejet pour les risques de première espèce de 1%, 5% et 10%. On ne rejette donc pas l'hypothèse nulle de stationarité.
+
+#### Modèle avec constante et tendance déterministe :
+  
+  Soit : 
+\[\Delta Xt = c + bt + Yt\]
+
+```{r DIFFlogIDE-Test-KPSScd, echo=TRUE}
+
+kpss_DIFFlogIDE2 <- ur.kpss(y=DIFFlogIDE, type="mu", lags="short" )
+summary(kpss_DIFFlogIDE2)
+```
+
+On trouve une statistique de test égale à 0.0457, elle est inférieure aux seuils de rejet pour les risques de première espèce de 1%, 5% et 10%. On ne rejette donc pas l'hypothèse nulle de stationarité.
+
+Les tests KPSS confirment bien les tests de Dickey Fuller. Notre série différenciée est dorénavant stationnaire. La stationnarité avait d'ailleurs été remarquée dans l'observation du graphe de la série différenciée du log des IDE. Notre processus initial Xt est I(1), donc DS sans dérive.
+
+## 4. Identification et validation du modèle ARMA
+
+### Identification du modèle
+
+Nous choisissons ici d'étudier la série sur le PIB, puisque l'on a conclu dans la section précédente qu'elle était I(0)+ C, donc stationnaire. Nous rappelons que nous travaillons avec 92 observations. Dans la suite, nous retirerons les 8 observations des périodes 2020-2021, les données n'étant pas représentatives à cause de la crise du COVID, et nous retirerons aussi les 3 dernières observations de l'année 2019, dans le but de comparer les prévisions faites sur les horizons 1 à 3 avec les valeurs observées.
+Après observation des autocorrélogrammes réalisés plus tôt sur la série, nous remarquons que la fonction d'autocorrélation simple diminue vers 0, avec seulement le premier terme significatif. L'étude de la fonction de l'autocorrélation partielle traduit une décroissance brusque vers zéro avec uniquement la première autocorrélation significativement différente de zéro. Suite à notre première analyse, nous pouvons supposer que nous pouvons identifier notre processus comme un processus AR (1).
+
+Nous allons effectuer la méthode de la recherche de grille pour déterminer la meilleure configuration des paramètres du modèle ARMA en fonction des critères d'information associés, le but étant de minimiser les critères d'information, ici les critères AIC et BIC. Le code associé à cette méthode est le suivant:
+
+```{r recherche de grille, echo=TRUE}
+# Initialisation des valeurs
+p_values <- 1:5  
+q_values <- 1:5
+best_aic <- Inf
+best_bic <- Inf
+best_order_aic <- c(0, 0)
+best_order_bic <- c(0, 0)
+
+# Boucle pour la selection de modele
+for (p in p_values) {
+  for (q in q_values) {
+    arma_model <- arima(PIB[1:81], order = c(p, 0, q))
+    current_aic <- AIC(arma_model)
+    current_bic <- BIC(arma_model)
+    if (current_aic < best_aic) {
+      best_aic <- current_aic
+      best_order_aic <- c(p, 0, q)
+    }
+    if (current_bic < best_bic) {
+      best_bic <- current_bic
+      best_order_bic <- c(p, 0, q)
+    }
+  }
+}
+
+#Affichage des resultats
+cat("Meilleure combinaison d'ordres pour AIC (p, d, q):", best_order_aic, "\n")
+cat("Meilleur AIC:", best_aic, "\n")
+
+cat("Meilleure combinaison d'ordres pour BIC (p, d, q):", best_order_bic, "\n")
+cat("Meilleur BIC:", best_bic, "\n")
+```
+
+On obtient que le modéle minimisant le critère d'information AIC est l'ARMA(3,2), avec un AIC qui vaut 103,57.
+
+Concernant le critère BIC, c'est l'ARMA(1,2) qui minimise le critère, avec un BIC qui vaut 117,21.
+
+Au vu des résultats observés sur les différents autocorrélogrammes, il nous semble plus pertinent de commencer à  travailler un modèle ARMA(1,2).
+
+### Validation du modèle
+
+Nous déterminons donc la validité du modèle suivant:
+\[
+X_t = c + \phi X_{t-1} + \varepsilon_t - \theta_1 \varepsilon_{t-1} - \theta_2 \varepsilon_{t-2}
+\]
+
+#### Test de stationnarité et inversibilité du modèle
+
+```{r autoplot, echo=TRUE, warning=FALSE, message=FALSE}
+library(forecast)
+library(TTR)
+library(ggplot2)
+ARMA12 <- arima(PIB[1:81], order = c(1, 0, 2))
+summary(ARMA12)
+
+# Tracé des racines inverses
+autoplot(ARMA12, main = "Racines inverse de l'ARMA(1,2)")
+```
+
+Les inverses des racines sont bien contenues à l'intèrieur du cercle unitaire, preuve de la stationnarité et de l'inversibilité du processus.
+
+#### Tests de significativité des coefficients
+\[
+H_0 : \phi_i=0 \ contre  \ H_1 : \phi_i \neq 0
+\]
+
+```{r, echo=TRUE}
+library(lmtest)
+coeftest(ARMA12)
+```
+La stat de test suit une loi normale centrée réduite sous \(H_o\) puisque l'on observe 81 observations.
+Les seuils critiques sont 2.57 pour un risque de première espèce égal à 1%, et 1.96 pour un risque de première espèce égal à 5%, d'après la table de la loi normale. 
+
+##### La constante:
+La stat de test vaut 3.96 pour la constante, donc est supérieure aux seuils critiques à 1% et 5%, on rejette donc \(H_o\), et on conclut que la constante est significative. Nous la conservons dans le modéle. 
+
+##### Le coefficient AR:
+Sa stat de test vaut 1.25, donc on ne peut pas rejeter \(H_o\), autrement dit le coefficient n'est pas significatif et on peut l'enlever. Cette conclusion est cohèrente avec la p-valeur, ici supérieure à alpha pour tous les niveaux.
+
+Le modèle s'inscrit désormais sous la forme d'un MA(2) avec constante:
+\[
+X_t = c + \varepsilon_t - \theta_1 \varepsilon_{t-1} - \theta_2 \varepsilon_{t-2}
+\]
+
+On procède à une nouvelle estimation du modèle:
+```{r, echo=TRUE}
+MA2<-Arima(PIB[1:81],order=c(0,0,2))
+coeftest(MA2)
+autoplot(MA2,main="Racines inverse du MA(2)")
+```
+Les coefficients sont ici tous significatifs, donc on garde ce modèle.
+Ces conclusions sont bien cohérentes avec les p-valeurs obtenues.
+
+À nouveau, le processus est bien stationnaire et inversible.
+
+On note ici qu'initialement le premier coefficient du MA n'était pas non plus significatif. En choisissant d'enlever celui-ci, on obtenait un ARMA(1,1) avec tous ses coefficients significatifs. Or, on voit que c'est le modèle MA(2) qui minimise les deux critères d'information AIC et BIC, c'est donc avec celui-ci que nous travaillerons par la suite.
+
+
+#### Tests sur les résidus
+
+##### Test d'absence d'autocorrélation de Ljung-Box
+
+  Les hypothèses du test sont les suivantes:
+\[
+H_0: \rho_1 = \rho_2 = \dots = \rho_H = 0 \ (absence \ d'autocorrelation) \ contre \ H_1: \overline{H}_0 \ (hypothese \ alternative)
+\]
+
+On décide du rejet ou non-rejet de \(H_o\) en regardant les p-values associées aux statistiques de Ljung-Box : 
+
+```{r, echo=TRUE}
+#Test de Ljung-Box
+library(forecast)
+LB<-checkresiduals(MA2,lag = 10)
+```
+
+Avec 10 retards, l'autocorrélogramme montre que toutes les autocorrélations sont situées dans les bornes de l'intervalle de confiance à 95% : aucune des autocorrélations n'est significativement différente de 0. Donc on ne rejette pas l'hypothèse nulle d'absence d'autocorrélation des résidus.
+
+On pouvait également vérifier ce résultat avec la statistique du test de Ljung-Box: elle est égale à 7.4042.
+
+Sous \(H_o\), la stat suit une loi du Chi-2 avec 10-2=8 degrès de liberté, car on a utilisé ici 10 retards et notre modèle posséde 2 paramètres non constants.
+Les seuils critiques sont donc tirés de la loi Chi-2(8), et valent: 
+
+- 13.36 pour un risque de première espèce de 10%
+- 15.51 pour un risque de première espèce de 5%
+- 20.09 pour un risque de première espèce de 1%.
+
+Notre stat est donc infèrieure à ces seuils critiques. On ne rejette donc pas l'hypothèse nulle d'absence d'autocorrélation des résidus.
+
+##### Test d'absence d'effets ARCH de Engle
+
+  On teste ici l'homoscédasticité des résidus, i.e s' ils ont tous la même variance.
+
+Les hypothèses sont les suivantes:
+
+\[ H_0: \gamma_1 = \ldots = \gamma_4 = 0 \Rightarrow pas \ d'effet \ ARCH \ contre \ H_1: \gamma_1 \neq 0 \ ou \ldots\gamma_4 \neq 0 \Rightarrow effet \ ARCH
+\]
+
+Nous choisissons ici 5 retards pour le test.
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+#Test de Engle
+install.packages("FinTS")
+library(FinTS)
+ArchTest(MA2$residuals,lags=5,demean = FALSE)
+```
+
+On obtient une stat de test qui vaut 15.721, et qui sous \(H_o\) suit une loi du Chi-2(5), puisque nous avons choisi ici 5 retards. En lisant la table du Chi-2(5), on obtient les seuils critiques suivants:
+
+- 9.24 pour un risque de première espèce de 10%
+- 11.07 pour un risque de première espèce de 5%
+- 15.09 pour un risque de première espèce de 1%.
+
+On rejette donc toujours l'hypothèse nulle d'absence d'effet ARCH.
+
+##### Test de normalité de Jarque-Bera
+
+  Ce test permet de vérifier la normalité des résidus. 
+
+```{r Jarque, echo=TRUE, message=FALSE, warning=FALSE}
+gghistogram(MA2$residuals, add.normal = TRUE)
+install.packages("moments")
+library(moments)
+sprintf("Coefficient d'asymetrie des residus : %f",skewness(MA2$residuals))
+sprintf("Coefficient d'aplatissement : %f",kurtosis(MA2$residuals))
+library(tseries)
+jarque.bera.test(MA2$residuals)
+```
+
+On trouve un coefficient d'asymétrie des résidus égal à -0.917361 et un coefficient d'aplatissement égal à 4.761215.
+
+Les hypothèses du test sont les suivantes::
+\[
+H_0: S(X) = 0 \ et \ K(X) = 3 \ contre \ H_1: S(X) \neq 0 \ ou \ K(X) \neq 3
+\]
+
+S et K désignent respectivement le coefficient d'asymétrie et le coefficient d'aplatissement, et valent respectivement 0 et 3 pour une loi normale centrée réduite.
+
+La statistique du test vaut 21.83, et suit sous \(H_o\) une loi du Chi-2(2). Avec sa table, on trouve des seuils critiques qui valent:
+
+- 4.61 pour un risque de première espèce de 10%
+- 5.99 pour un risque de première espèce de 5%
+- 9.21 pour un risque de première espèce de 1%.
+
+Donc on rejette l'hypothèse nulle, c'est-à-dire que les résidus ne suivent pas une loi normale. On aurait pu également le voir avec la p-valeur qui vaut ici 1.819e-05, qui est bien inférieure aux alpha.
+
+
+## 5. Prévisions du modèle sur les horizons 1 à 3
+
+Puisque nous travaillons avec un MA(2), nous aurons ici besoin des deux derniers résidus, en t-1 et t-2, pour estimer en t. On rappelle que notre modéle s'écrit:
+\[
+X_t = c + \varepsilon_t - \theta_1 \varepsilon_{t-1} - \theta_2 \varepsilon_{t-2}
+\]
+
+Commençons par estimer les coefficients du modèle.
+
+```{r, echo=TRUE}
+MA2<-Arima(PIB[1:81],order=c(0,0,2))
+coeftest(MA2)
+```
+
+Donc notre modèle s'écrit: 
+
+\[ X_t = 0.375975 + \varepsilon_t - 0.208955 \varepsilon_{t-1} - 0.487036 \varepsilon_{t-2}
+\]
+
+La valeur indiquée par R au niveau "intercept" est normalement celle de l'espérance, mais ici est directement celle de la constante puisque l'espérance de la variable est égale à la constante dans le cadre d'un modèle MA.
+
+On calcule les prévisions sur la série modélisée, sur les horizons 1 à 3, c'est-à-dire les trois derniers trimestres de 2019, avec un intervalle de prévision de niveau 95%.
+
+```{r, echo=TRUE}
+library(forecast)
+previsions_MA2<-forecast(MA2,h=3,level=95)
+previsions_MA2
+autoplot(previsions_MA2,ylab="Values",main="Previsions sur horizons 1 a 3")
+```
+
+### Prévision pour 2019 Q2: h=1
+
+Nous avons ici besoin des erreurs de 2019 Q1 et 2018 Q4.
+\[ X_t = 0.375975 + \varepsilon_t - 0.208955 \varepsilon_{t-1} - 0.487036 \varepsilon_{t-2}
+\]
+
+L'erreur en 2018_Q4 vaut 0.52611517 - 0.5316451 = -0.00552993.
+L'erreur en 2019_Q1 vaut 0.69404909 - 0.5239436 = 0.1701055
+
+Donc ici PIB_2019Q2 = 0.375975 - 0.208955 * 0.1701055 - 0.487036 * (-0.00552993) = 0.3431239
+                           
+### Prévision pour 2019 Q3: h=2
+
+Nous avons ici besoin de l'erreur en 2019 Q2.
+L'erreur en 2019_Q2 vaut 0.66797527 - 0.4055598	 =  0.2624155
+
+Donc ici PIB_2019Q3 = 0.375975 - 0.208955 * 0.2624155 - 0.487036 * 0.1701055 = 0.2382945
+                           
+### Prévision pour 2019 Q4: h=3
+
+Nous avons ici besoin de l'erreur en 2019 Q3
+L'erreur en 2019_Q3 vaut 0.10054614 - 0.4541419	 = -0.3535958
+
+Donc ici PIB_2019Q4 = 0.375975 - 0.208955 * (-0.3535958) - 0.487036 * 0.2624155 = 0.3220548
+                           
+```{r, echo=TRUE, warning=FALSE, message= FALSE}
+PIB_fusion <- data.frame(
+  Time = time(PIB[1:81]),
+  Observed = as.numeric(PIB[1:81]),
+  Forecasted = as.numeric(previsions_MA2$mean),
+  Upper = as.numeric(previsions_MA2$upper),
+  Lower = as.numeric(previsions_MA2$lower)
+)
+library(reshape2)
+data_melt=melt(as.data.frame(PIB_fusion),id.vars = 1)
+
+ggplot(PIB_fusion, aes(x = Time)) +
+  geom_line(aes(y = Observed, color = "Observé"), linewidth = 1) +
+  geom_line(aes(y = Forecasted, color = "Ajusté"), linetype = "dashed", linewidth = 1) +
+  geom_ribbon(aes(ymin = Lower, ymax = Upper, fill = "Ajusté"), alpha = 0.2) +
+  labs(title = "Evolution du PIB et ses prévisions",
+       x = "Temps",
+       y = "Valeur") +
+  theme_minimal()
+```
+
+Ainsi, nous sommes plutôt satisfaits de notre modèle. Les prévisions effectuées sont assez proches des données observées. Les différences peuvent s'expliquer de plusieurs manières. Bien sûr, notre modèle MA(2) n'est pas parfait, et cela explique certaines différences. Cependant, on peut aussi évoquer certains événements inhérents à la période 2019, qui ont pu réduire anormalement la croissance du PIB, notamment la crise des Gilets Jaunes, certaines réformes économiques et fiscales, mais également de manière plus générale, un ralentissement économique a été observé l'année 2019 à l'échelle mondiale, ralentissement auquel la France n'a pas échappé.
+
+\newpage
+
+# Partie 2 : Modélisation multivariée
+
+## 6. Estimation du modèle VAR
+
+### Représentation des données
+
+On utilise un modèle VAR (Vecteur Auto-Régressif) pour étudier les relations entre le taux de croissance du PIB de la France d'un trimestre à un autre, et le log des IDE différencié une fois. Nous cherchons ici à modéliser ces deux séries grâce aux informations sur leurs valeurs passées. La stationnarité des deux processus a été vérifiée au préalable dans la première partie.
+
+On commence par représenter sur un même graphe l'évolution de ces deux variables. 
+
+```{r graphique et concatenation, echo=TRUE, warning=FALSE, message=FALSE}
+
+install.packages("reshape2")
+
+library(ggplot2)
+
+library(reshape2)
+
+# Utilisation de ts.intersect pour obtenir les séries temporelles
+endogen <- ts.intersect(PIB, DIFFlogIDE)
+
+
+# Conversion des séries temporelles en dataframes
+endogen_df <- data.frame(
+  temps = time(endogen),
+  PIB = as.numeric(endogen[, 'PIB']),
+  DIFFlogIDE = as.numeric(endogen[, 'DIFFlogIDE'])
+)
+
+# Création du graphique avec ggplot en utilisant les dataframes
+ggplot(data = endogen_df, aes(x = temps)) +
+  geom_line(aes(y = PIB, color = "PIB")) +
+  geom_line(aes(y = DIFFlogIDE, color = "DIFFlogIDE")) +
+  labs(title = "Evolution de PIB et DIFFlogIDE en fonction du temps", x = "Temps", y = "Valeurs") +
+  scale_color_manual(values = c(PIB = "blue", DIFFlogIDE = "red")) +
+  theme_minimal()
+
+```
+En raison de la spécificité de la période Covid, nous choisissons de nous limiter dans la suite de cette étude à la période avant Covid : c'est à dire du 2ème trimestre de 1999 au 4ème trimestre de 2019. 
+
+```{r Donnees_hors_COV, echo=TRUE, warning=FALSE, message=FALSE}
+
+PIB_horscov <- ts(PIB[1:83],frequency = 4,start = c(1999,2))
+DlogIDE_horscov <-ts(DIFFlogIDE[1:83],frequency = 4,start = c(1999,2))
+
+endogen_horscov <- ts.intersect(PIB_horscov, DlogIDE_horscov)
+
+# Conversion des séries temporelles en dataframes
+endogen_horscov_df <- data.frame(
+  temps = time(endogen_horscov),
+  PIB_horscov = as.numeric(endogen_horscov[, 'PIB_horscov']),
+  DlogIDE_horscov = as.numeric(endogen_horscov[, 'DlogIDE_horscov'])
+)
+
+# Création du graphique avec ggplot en utilisant les dataframes
+ggplot(data = endogen_horscov_df, aes(x = temps)) +
+  geom_line(aes(y = PIB_horscov, color = "PIB_horscov")) +
+  geom_line(aes(y = DlogIDE_horscov, color = "DlogIDE_horscov")) +
+  labs(title = "Evolution de PIB et DIFFlogIDE en fonction du temps, sans la période Covid", x = "Temps", y = "Valeurs") +
+  scale_color_manual(values = c(PIB_horscov = "blue", DlogIDE_horscov = "red")) +
+  theme_minimal()
+
+```
+
+### Choix des retards
+
+On peut maintenant estimer le modèle VAR correspondant avec le nombre de retards optimal. 
+
+On commence par déterminer le nombre de retards par l'application de
+critères d'information multivariés. On doit spécifier, le lag.max, c'est
+à dire le nombre maximal de retards; et le type, c'est à dire la forme
+de la composante déterministe. On considère généralement au maximum 4
+retards sur des données trimestrielles. On considère ici une constante comme composante déterministe, cela semble être en accord avec les résultats trouvés sur l’estimation du modèle dans le cas univarié. En effet, on a rejeté l'hypothèse selon laquelle il existait une tendance
+déterministe significative dans notre modèle, donc on estime un modèle
+VAR avec une constante.
+
+```{r choix nombre de retards, echo=TRUE}
+pselect <-VARselect(y=endogen_horscov, lag.max = 4, type="const")
+
+#Affichage des valeurs des critères des sélection 
+pselect$criteria 
+
+#Nombres de retards optimal selon les critères de sélection 
+pselect$selection 
+```
+Le retard optimal est celui qui minimise les critères. Ces critères
+sont des mesures de la qualité du modèle, visant à trouver le bon
+équilibre entre la complexité du modèle et son ajustement aux
+données. Les retards pour lesquels ces critères sont les plus faibles
+sont généralement considérés comme les meilleurs parce qu'ils
+représentent des modèles qui sont à la fois relativement simples et
+qui ajustent bien les données observées.
+
+On choisit donc p=2 sur la base des critères HQ, AIC et FPE.
+
+### Estimation du modèle VAR
+
+```{r estimation du modèle VAR, include=FALSE}
+VAR2 <-VAR(y=endogen_horscov, type="const",lag.max=2)
+summary(VAR2) #Affichage des résultats avec summary
+```
+#### Equation du PIB
+
+  Analysons les résultats obtenus avec la commande summary effectuée sur le modèle VAR:
+
+- le coefficient de PIB_horscov.l1 est significatif et positif pour un risque de première espèce de 1% 
+- le coefficient de DlogIDE_horscov.l1 n’est pas significatif et négatif 
+- le coefficient de PIB_horscov.l2 est significatif et positif pour un risque de première espèce de 5% 
+- le coefficient de DlogIDE_horscov.l2 n’est pas significatif et négatif
+- la constante est significative pour un risque de première espèce de 5%
+- le R^2 ajusté vaut 20%
+
+#### Equation des IDE
+- le coefficient de PIB_horscov.l1 n’est pas significatif et positif 
+- le coefficient de logIDE_diff_horscov.l1 est significatif et négatif pour un risque de première espèce de 1%
+- le coefficient de PIB_horscov.l2 n’est pas significatif et positif
+- le coefficient de logIDE_diff_horscov.l2 est significatif et négatif pour un risque de première espèce de 5%
+- la constante n’est pas significative
+- le R^2 ajusté vaut 25%
+
+#### Commentaire:
+Le coefficient de détermination R^2 ajusté pour le PIB est de 20%, et de 25% pour les log des IDE différenciés. Le pouvoir explicatif de la régression est donc meilleur pour la deuxième série. 
+En ce qui concerne la significativité des coefficients, nous trouvons que les coefficients sont significatifs pour les retards du PIB dans l’équation du PIB, et significatifs pour les retards des IDE dans l’équation des IDE. On peut alors penser que les variables ne sont pas significativement liées.
+
+On vérifie ensuite que le VAR est bien stationnaire, en se posant la question suivante : le module des inverses des racines du polynôme caractéristique appartient-il au disque unité complexe ?
+On le vérifie avec la commande roots de R. 
+
+
+```{r verif stationnarite VAR, echo=TRUE}
+racine_inverse <-roots(VAR2)
+#On représente le résultat graphiquement
+racines <- as.complex(racine_inverse)
+racines_df <- data.frame(Re = Re(racines), Im = Im(racines))
+library(ggplot2)
+
+ggplot(racines_df, aes(x = Re, y = Im)) +
+  geom_point(size = 3, color = "blue", shape = 19) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  labs(x = "Partie réelle", y = "Partie imaginaire", title = "Représentation des racines inverses du polynôme")
+
+```
+
+Les inverses des racines du polynôme caractéristique sont de module strictement inférieur à 1 : 0.6936 0.4951 0.4951 0.3619.
+La condition de stationnarité est donc satisfaite.
+
+On vérifie maintenant que les résidus ne sont pas autocorrélés. On choisit de tester l'autocorrélation sur 10 retards, donc on choisit lags.pt=10. 
+
+```{r verif autocorrelation residus, echo=TRUE}
+serial.test(VAR2,lags.pt=10,type = "PT.adjusted")
+```
+La p-valeur vaut 0.2769, est donc supérieure aux niveaux de significativité 1,5 et 10%. On ne rejette donc pas l'hypothèse nulle d'absence d'autocorrélation des résidus, c'est-à-dire que les résidus du modèle ne sont pas significativement corrélés.
+
+On détermine ensuite les coefficients associé à notre modèle.
+
+```{r Coeff matrice, echo=TRUE}
+A<-Acoef(VAR2)
+A
+```
+
+Nous travaillons donc avec le modèle suivant:
+\[
+\begin{cases}
+  \ PIB_t = 0.30363 \ PIB_{t-1} + 0.28222 \ PIB_{t-2} -0.03423 IDE_{t-1} -0.06810 IDE_{t-2}  + e_{1t} \\
+  IDE_t = -0.60942  IDE_{t-1} -0.24892 IDE_{t-2} + 0.02715 PIB_{t-1} +0.12823 PIB_{t-2} + e_{2t} \\
+\end{cases}
+\]
+Nous pouvons écrire ce système sous forme matricielle :
+\[
+\begin{bmatrix}
+  PIB_t \\
+  IDE_t \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+  0.30363 & 0.28222 \\
+  0.02715 & 0.12823 \\
+\end{bmatrix}
+\begin{bmatrix}
+  PIB_{t-1} \\
+  PIB_{t-2} \\
+\end{bmatrix}
++
+\begin{bmatrix}
+  -0.03423 & -0.06810 \\
+  0.02715 & 0.12823 \\
+\end{bmatrix}
+\begin{bmatrix}
+  IDE_{t-1} \\
+  IDE_{t-2} \\
+\end{bmatrix}
++
+\begin{bmatrix}
+  e_{1t} \\
+  e_{2t} \\
+\end{bmatrix}
+\]
+
+## 7. Relations de causalité entre les variables
+L’intérêt dans cette partie est d’évaluer la causalité ou non d’une variable sur l’autre, en utilisant la causalité au sens de Granger, que l’on rappelle ici:
+soient 2 variables Xt et Yt . On dit que Xt cause Yt au sens de Granger si la connaissance des valeurs passées de Xt améliore la prévision de Yt.
+
+### Test d’absence de causalité du PIB sur les IDE
+
+Les hypothèses du test sont les suivantes:
+\[
+\ H_0:absence \ de \ causalite, \ soit \ les \ coefficients \ associes \ a \ PIB \ dans \ IDE \ sont \ nuls; \ contre \ H_1: causalite
+\]
+
+```{r Test Granger 1, echo=TRUE}
+causality(VAR2,cause="PIB_horscov")
+```
+On ne rejette donc pas l’hypothèse nulle d’absence de causalité. On peut le voir soit par lecture des valeurs critiques indiquées par la table de Fisher(2,152), car la statistique de test est toujours inférieure à ces valeurs, ou simplement en voyant que la p-valeur, qui vaut 0.6602 est bien supérieure aux seuils 1,5 et 10%.
+Ainsi, le taux de croissance du PIB d’un trimestre sur l’autre ne semble pas impacter les IDE.
+
+### Test d’absence de causalité des IDE sur le PIB
+
+Les hypothèses de test sont les suivantes:
+\[
+\ H_0:absence \ de \ causalite, \ soit \ les \ coefficients \ associes \ a \ IDE \ dans \ PIB \ sont \ nuls; \ contre \ H_1: causalite
+\]
+
+```{r Test Granger 2, echo=TRUE}
+causality(VAR2,cause="DlogIDE_horscov")
+```
+On ne rejette donc pas l’hypothèse nulle d’absence de causalité. On peut le voir soit par lecture des valeurs critiques indiquées par la table de Fisher(2,152), car la statistique de test est toujours inférieure à ces valeurs, ou simplement en voyant que la p-valeur, qui vaut 0.6459 est bien supérieure aux seuils 1,5 et 10%.
+Ainsi, le log des IDE (différencié une fois) en part du PIB ne semble pas impacter le taux de variation du PIB.
+
+## 8. Analyse impulsion réponse des chocs
+
+Nous passons maintenant à l'analyse des fonctions de réponse. La fonction de réponse d'un VAR retrace l'effet d'un choc en t sur l'une des variables, sur les variables présentes et futures de cette variable et sur les autres variables du VAR. 
+  
+On compare à cette fin le profil prévu de la série à un horizon h suite à un choc survenu en t, à celui en l'absence de choc. 
+  
+D'après la propriété de la fonction de réponse, si le VAR est stationnaire, les fonctions de réponse au choc doivent tendre vers 0 à mesure que l'on s'éloigne de la date du choc. Cela signifie que leur effet est seulement transitoire. Etant donné que l'on a montré que notre VAR est stationnaire, nous devons donc trouver que ces fonctions tendent vers 0 au cours du temps. 
+  
+Pour calculer ces fonction de réponse, nous allons présenter deux méthodes : le calcul des prévisions de façon recursive à partir du VAR estimé, puis la méthode des projections locales de Jorda. 
+ 
+### La méthode des VAR
+
+Le calcul des réponses est ici fondé sur des prévisions récursives avec le modèle VAR estimé. Les chocs structurels sont obtenus avec une décomposition de Cholesky, pour créer des chocs orthogonaux (non corrélés). Pour cela, nous devons choisir l'ordre de causalité des variables. Economiquement, et avec ce que l'on a observé à la question précédente, la potentielle causalité du log des IDE sur le taux de croissance du PIB est plus forte que l'inverse.
+Trouver arguments économiques.
+On place donc le log des IDE différencié de la France en premier. 
+  
+Nous avons ajouté un intervalle de confiance de 95% pour déterminer la significativité des réponses. 
+  
+Finalement, nous choisissons d'observer les impulsions réponses sur 12 périodes futures suite au choc. 
+
+```{r FRep-T1, echo=TRUE}
+endogen_horscov <-ts.intersect(DlogIDE_horscov,PIB_horscov)
+irf<-irf(VAR2,n.ahead=12, ortho = TRUE,ci=0.95)
+plot(irf)
+```
+
+La première figure retrace les réponses du taux de croissance du PIB de la France (premier graphe) et du log des IDE différencié de la France(second graphe) à un choc sur le taux de croissance du PIB de la France. 
+
+La seconde figure retrace les réponses du taux de croissance du PIB de la France  (premier graphe) et du log des IDE différencié de la France (second graphe) à un choc sur le log des IDE différencié de la France. 
+
+#### Remarque : 
+Les quatre fonctions convergent vers zéro, ce qui est conforme avec la stationnarité du VAR. En effet, la stationnarité s’interprète comme une non-persistance des chocs, la série finit par retourner vers sa moyenne.
+
+#### Effet d'un choc sur le taux de croissance du PIB de la France: 
+L'effet est positif et immédiat sur le log des IDE différencié, puis on observe un effet négatif, puis de nouveau positif jusque tendre vers 0. Cela ne semble pas forcément en accord avec les résultats trouvés lors de l'application des test de Granger, mais cela ne semble pas absurde d'un point de vue macroéconomique. En effet, les investissements globaux peuvent s'exprimer directement en fonction du PIB avec peu de facteurs externes supplémentaires, donc les IDE, qui représentent une part des investissements, peuvent être sensibles à un choc sur le PIB.  
+
+#### Effet d'un choc sur le log des IDE différencié : 
+On remarque qu'un tel choc a très peu d'effet sur le taux de croissance du PIB de la France, il subit une très très faible baisse suite au choc mais l'effet n'est pas immédiat ni significatif. A nouveau, d'un point de vue macroéconomique, ce résultat ne semble pas absurde dans la mesure où le PIB est une variable qui dépend d'énormément de facteurs, les IDE n'étant pas forcément un facteur majeur comparé aux autres.
+
+### La méthode des projections locales
+
+On présente ensuite le calcul des réponses, fondé sur la méthode des projections locales de Jorda. Les chocs structurels sont obtenus avec une décomposition de Cholesky.
+
+```{r FRep-T2, echo=TRUE, warning=FALSE, message=FALSE}
+install.packages("collapse")
+install.packages("lpirfs")
+library(collapse)
+library(lpirfs)
+irf_LP<-lp_lin(endog_data= as.data.frame(endogen),
+               lags_endog_lin = NaN,
+               lags_criterion="BIC",
+               max_lags = 4, 
+               trend = 0,
+               shock_type = 0, 
+               confint = 1.96, 
+               hor = 12,
+               adjust_se=TRUE)
+plot(irf_LP)
+```
+Les résultats obtenus par la méthode des projections locales sont en accord avec ceux obtenus avec la méthode des VAR. Les graphiques associés à cette méthode sont selon nous encore plus lisibles que ceux obtenus avec la méthode des VAR.
+
+### Analyse de la décomposition de la variance d'erreur
+
+Cette analyse va permettre de confirmer les choix effectués dans l'ordre des variables dans le calcul des fonctions de réponse.
+
+```{r Decomp-var, echo=TRUE}
+dec_var <-fevd(VAR2,n.ahead=10) 
+print(dec_var)
+plot(dec_var)
+```
+Les résultats obtenus par décomposition de la variance sont cohérents avec ceux trouvés lors des analyses de causalité entre les deux variables. On remarque tout de même bien que notre choix d'ordre effectué lors du calcul des fonctions de réponse est cohérent, dans le sens où les chocs sur le PIB n'affectent presque pas du tout la variance d'erreur des IDE, alors qu'un choc sur les IDE affecte (en comparaison) plus la variance d'erreur du PIB.
+
+## 9. Test de cointégration de Johansen
+
+Le test de cointégration de Johansen est généralement applicable lorsque toutes les séries temporelles impliquées dans l'analyse sont intégrées de même ordre, c'est-à-dire qu'elles sont toutes I(d) avec le même ordre d'intégration d. Ce n'est pas le cas ici, puisque la série du PIB est I(0) alors que la série du log des IDE est I(1).
+
+\newpage
+
+# Conclusion générale
+
+Lors de ce projet, nous avons pu effectuer sur nos séries choisies les méthodes vues dans ce cours d'Econométrie II. Dans une première partie, la dynamique de nos séries a pu être analysée, et avec un modèle linéaire nous avons réussi à effectuer des prévisions qui nous semblent fiables sur notre série du taux de variation semestriel du PIB.
+En seconde partie, la mise en relation des deux séries à l'aide d'une modélisation multivariée a permis d'affirmer ou d'infirmer la présence de corrélations entre ces deux séries. Nous en avons conclu que nos deux séries étaient faiblement correlées, au regard des tests de causalité de Granger et des fonctions d'impulsion-réponse. 
+
+En effet, la relation entre les investissements directs étrangers en France et le taux de croissance du PIB peut être moins directe que ce que l'on pourrait pu penser, en raison de divers facteurs et mécanismes économiques.
+
+Premièrement, il existe un décalage temporel entre ces deux variables. Les effets des IDE sur le PIB peuvent ne pas être immédiats. Les investissements nécessitent souvent du temps pour être mis en œuvre et commencer à contribuer à la croissance économique. Ainsi, la corrélation peut ne pas être instantanée.
+
+De plus, il est important de regarder la nature des investissements. Les IDE peuvent être orientés vers des secteurs spécifiques qui ont des cycles économiques différents. Par exemple, les investissements dans des industries de haute technologie peuvent avoir des effets sur la croissance à long terme, tandis que d'autres investissements peuvent avoir des impacts plus immédiats.
+
+Egalement, dans ce projet l'analyse est basée sur deux variables, mais il est évident qu'il existe une multitude de variables supplémentaires pouvant être corélées plus significativement à nos variables étudiées. On peut les voir comme des facteurs externes. En effet, la corrélation entre les IDE et le PIB peut être influencée par des facteurs externes tels que les conditions économiques mondiales, les politiques commerciales, les taux de change, etc. Les variations dans ces facteurs peuvent contribuer à des mouvements indépendants du PIB et des IDE. Parmis ces facteurs, on peut citer notamment les politiques gouvernementales françaises effectuées sur la période étudiée, qui ont concerné notamment les incitations fiscales, les réformes structurelles, et la réglementation des investissements.
+
+En résumé, bien que les IDE et le taux de croissance du PIB soient liés dans leur contribution globale à l'économie, la nature complexe de ces interactions, combinée à des facteurs externes et des délais dans la réalisation des effets, peut conduire à une corrélation moins directe que ce que l'on pourrait anticiper intuitivement.
+
+
+
+
+
+
